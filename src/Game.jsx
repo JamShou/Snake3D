@@ -17,6 +17,8 @@ const START_LENGTH = 8;
 const SEGMENT_SPACING = 0.32;
 const TURN_ANGLE = 0.42;
 const FOOD_COLLISION_RADIUS = 0.35;
+const START_TICK_LENGTH = 1 / 16;
+const MIN_TICK_LENGTH = 0.04;
 const PUBLIC_BASE_URL = import.meta.env.BASE_URL;
 const FRUITS = [
   {
@@ -41,6 +43,10 @@ const FRUITS = [
 
 function randomFruit() {
   return FRUITS[Math.floor(Math.random() * FRUITS.length)];
+}
+
+function getTickLength(score) {
+  return Math.max(MIN_TICK_LENGTH, START_TICK_LENGTH - score * 0.0012);
 }
 
 async function loadFruitModels() {
@@ -329,7 +335,7 @@ function Scene({ game, fruitModels, snakeColors, onStep }) {
     }
 
     accumulator.current += delta;
-    const tickLength = Math.max(0.055, 0.12 - game.score * 0.004);
+    const tickLength = getTickLength(game.score);
 
     while (accumulator.current >= tickLength) {
       onStep();
@@ -616,7 +622,7 @@ export default function Game() {
           </div>
           <div>
             <span className="label">Speed</span>
-            <strong>{Math.round((1 / Math.max(0.055, 0.12 - game.score * 0.004)) * 10) / 10}</strong>
+            <strong>{Math.round((1 / getTickLength(game.score)) * 10) / 10}</strong>
           </div>
         </section>
       )}
