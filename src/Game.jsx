@@ -469,21 +469,23 @@ export default function Game() {
         <Scene game={game} onStep={stepGame} />
       </Canvas>
 
-      <section className="hud" aria-label="Game status">
-        <div>
-          <span className="label">Score</span>
-          <strong>{game.score}</strong>
-        </div>
-        <div>
-          <span className="label">Speed</span>
-          <strong>{Math.round((1 / Math.max(0.055, 0.12 - game.score * 0.004)) * 10) / 10}</strong>
-        </div>
-      </section>
+      {game.status !== 'menu' && (
+        <section className="hud" aria-label="Game status">
+          <div>
+            <span className="label">Score</span>
+            <strong>{game.score}</strong>
+          </div>
+          <div>
+            <span className="label">Speed</span>
+            <strong>{Math.round((1 / Math.max(0.055, 0.12 - game.score * 0.004)) * 10) / 10}</strong>
+          </div>
+        </section>
+      )}
 
       {game.status === 'menu' && (
         <div className="overlay menu-overlay" role="dialog" aria-modal="true">
           <div className="menu-panel">
-            <h1>Snake-3D</h1>
+            <h1>Snake3D</h1>
             <button type="button" onClick={startGame}>Start</button>
           </div>
         </div>
