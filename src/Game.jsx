@@ -17,22 +17,23 @@ const START_LENGTH = 8;
 const SEGMENT_SPACING = 0.32;
 const TURN_ANGLE = 0.42;
 const FOOD_COLLISION_RADIUS = 0.35;
+const PUBLIC_BASE_URL = import.meta.env.BASE_URL;
 const FRUITS = [
   {
     name: 'Banana',
-    path: '/fruits/Banana.glb',
+    path: `${PUBLIC_BASE_URL}fruits/Banana.glb`,
     growth: 3,
     scale: 6.8,
   },
   {
     name: 'Orange',
-    path: '/fruits/Orange.glb',
+    path: `${PUBLIC_BASE_URL}fruits/Orange.glb`,
     growth: 5,
     scale: 2.24,
   },
   {
     name: 'Egg',
-    path: '/fruits/Egg.glb',
+    path: `${PUBLIC_BASE_URL}fruits/Egg.glb`,
     growth: 1,
     scale: 0.3,
   },
@@ -296,7 +297,7 @@ export default function Game() {
 
   const startMusic = useCallback(() => {
     if (!musicRef.current) {
-      musicRef.current = new Audio('/music/Snake.mp3');
+      musicRef.current = new Audio(`${PUBLIC_BASE_URL}music/Snake.mp3`);
       musicRef.current.loop = true;
       musicRef.current.volume = 0.45;
     }
@@ -308,7 +309,7 @@ export default function Game() {
 
   const playEatSound = useCallback(() => {
     if (!eatSoundRef.current) {
-      eatSoundRef.current = new Audio('/music/eatingnoises.mp3');
+      eatSoundRef.current = new Audio(`${PUBLIC_BASE_URL}music/eatingnoises.mp3`);
       eatSoundRef.current.volume = 0.75;
     }
 
