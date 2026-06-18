@@ -67,10 +67,11 @@ function makePlanetTexture() {
   const ctx = canvas.getContext('2d');
 
   const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, '#20c4f4');
-  gradient.addColorStop(0.3, '#72e56d');
-  gradient.addColorStop(0.62, '#ffd166');
-  gradient.addColorStop(1, '#ff7ab6');
+  gradient.addColorStop(0, '#24135f');
+  gradient.addColorStop(0.28, '#6d28d9');
+  gradient.addColorStop(0.56, '#c026d3');
+  gradient.addColorStop(0.78, '#22d3ee');
+  gradient.addColorStop(1, '#120a35');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
 
@@ -80,7 +81,7 @@ function makePlanetTexture() {
     const radius = 8 + Math.random() * 34;
     const hue = Math.random();
     ctx.globalAlpha = 0.05 + Math.random() * 0.13;
-    ctx.fillStyle = hue > 0.66 ? '#fff275' : hue > 0.38 ? '#3ee37a' : '#22a6f2';
+    ctx.fillStyle = hue > 0.72 ? '#f0abfc' : hue > 0.45 ? '#38bdf8' : '#4c1d95';
     ctx.beginPath();
     ctx.ellipse(x, y, radius * (0.6 + Math.random()), radius * 0.32, Math.random() * Math.PI, 0, Math.PI * 2);
     ctx.fill();
@@ -88,7 +89,7 @@ function makePlanetTexture() {
 
   for (let i = 0; i < 160; i += 1) {
     ctx.globalAlpha = 0.12 + Math.random() * 0.16;
-    ctx.strokeStyle = Math.random() > 0.5 ? '#fff7ad' : '#6ee7f9';
+    ctx.strokeStyle = Math.random() > 0.5 ? '#f9a8d4' : '#67e8f9';
     ctx.lineWidth = 1 + Math.random() * 2;
     ctx.beginPath();
     const y = Math.random() * size;
@@ -122,6 +123,31 @@ function makeStarPositions(count, radius, band = 1) {
   return positions;
 }
 
+function makeOrbPositions(count, radius) {
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const palette = [
+    new THREE.Color('#fef3c7'),
+    new THREE.Color('#f0abfc'),
+    new THREE.Color('#67e8f9'),
+    new THREE.Color('#fda4af'),
+    new THREE.Color('#bbf7d0'),
+  ];
+
+  for (let i = 0; i < count; i += 1) {
+    const point = new THREE.Vector3().randomDirection().multiplyScalar(radius * (0.72 + Math.random() * 0.28));
+    const color = palette[Math.floor(Math.random() * palette.length)];
+    positions[i * 3] = point.x;
+    positions[i * 3 + 1] = point.y * 0.8;
+    positions[i * 3 + 2] = point.z;
+    colors[i * 3] = color.r;
+    colors[i * 3 + 1] = color.g;
+    colors[i * 3 + 2] = color.b;
+  }
+
+  return { positions, colors };
+}
+
 function spawnFoodAwayFromSnake(body) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
     const point = randomPointOnSphere(SPHERE_RADIUS);
@@ -150,14 +176,14 @@ function Planet() {
         <sphereGeometry args={[SPHERE_RADIUS, 96, 96]} />
         <meshStandardMaterial
           map={texture}
-          color="#d7e3d3"
+          color="#f5d0fe"
           roughness={0.86}
           metalness={0.02}
         />
       </mesh>
       <mesh scale={1.025}>
         <sphereGeometry args={[SPHERE_RADIUS, 64, 64]} />
-        <meshBasicMaterial color="#f0abfc" transparent opacity={0.13} side={THREE.BackSide} />
+        <meshBasicMaterial color="#22d3ee" transparent opacity={0.16} side={THREE.BackSide} />
       </mesh>
     </group>
   );
@@ -166,6 +192,7 @@ function Planet() {
 function SpaceBackdrop() {
   const nearStars = useMemo(() => makeStarPositions(900, 64), []);
   const farStars = useMemo(() => makeStarPositions(1400, 96, 0.72), []);
+  const glowingOrbs = useMemo(() => makeOrbPositions(90, 88), []);
 
   return (
     <group>
@@ -185,13 +212,40 @@ function SpaceBackdrop() {
         </bufferGeometry>
         <pointsMaterial color="#fef9c3" size={0.055} sizeAttenuation transparent opacity={0.86} />
       </points>
-      <mesh position={[-24, 10, -34]} rotation={[0.2, -0.5, 0.1]}>
-        <planeGeometry args={[38, 18, 1, 1]} />
-        <meshBasicMaterial color="#ff4fd8" transparent opacity={0.12} depthWrite={false} />
+      <points>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[glowingOrbs.positions, 3]} />
+          <bufferAttribute attach="attributes-color" args={[glowingOrbs.colors, 3]} />
+        </bufferGeometry>
+        <pointsMaterial size={0.55} sizeAttenuation vertexColors transparent opacity={0.7} depthWrite={false} />
+      </points>
+      <mesh position={[-28, 11, -38]} rotation={[0.18, -0.58, 0.1]}>
+        <planeGeometry args={[50, 18, 1, 1]} />
+        <meshBasicMaterial color="#ff4fd8" transparent opacity={0.16} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh position={[20, 19, -52]} rotation={[0.62, 0.26, -0.28]}>
+        <planeGeometry args={[62, 16, 1, 1]} />
+        <meshBasicMaterial color="#fde047" transparent opacity={0.11} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
       <mesh position={[28, -4, -42]} rotation={[-0.1, 0.62, 0.16]}>
         <planeGeometry args={[46, 20, 1, 1]} />
-        <meshBasicMaterial color="#22d3ee" transparent opacity={0.1} depthWrite={false} />
+        <meshBasicMaterial color="#22d3ee" transparent opacity={0.14} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh position={[-38, -18, -56]} rotation={[0.78, -0.22, 0.72]}>
+        <torusGeometry args={[7.2, 0.08, 8, 96]} />
+        <meshBasicMaterial color="#fef3c7" transparent opacity={0.38} depthWrite={false} />
+      </mesh>
+      <mesh position={[-38, -18, -56]} rotation={[0.78, -0.22, 0.72]}>
+        <sphereGeometry args={[2.7, 32, 32]} />
+        <meshBasicMaterial color="#fb7185" transparent opacity={0.82} />
+      </mesh>
+      <mesh position={[42, 22, -62]}>
+        <sphereGeometry args={[1.4, 24, 24]} />
+        <meshBasicMaterial color="#60a5fa" transparent opacity={0.72} />
+      </mesh>
+      <mesh position={[45, 24, -59]}>
+        <sphereGeometry args={[0.42, 16, 16]} />
+        <meshBasicMaterial color="#fef08a" transparent opacity={0.86} />
       </mesh>
     </group>
   );
@@ -266,7 +320,7 @@ function CameraFollower({ head, forward }) {
   return null;
 }
 
-function Scene({ game, fruitModels, onStep }) {
+function Scene({ game, fruitModels, snakeColors, onStep }) {
   const accumulator = useRef(0);
 
   useFrame((_, delta) => {
@@ -292,7 +346,7 @@ function Scene({ game, fruitModels, onStep }) {
       <directionalLight position={[6, 9, 5]} intensity={1.85} color="#fff7ad" />
       <directionalLight position={[-4, -2, -5]} intensity={0.55} color="#67e8f9" />
       <Planet />
-      <SphereSnake body={game.body} />
+      <SphereSnake body={game.body} headColor={snakeColors.head} bodyColor={snakeColors.body} />
       <Food food={game.food} fruitModels={fruitModels} />
       <CameraFollower head={game.body[0]} forward={game.forward} />
     </>
@@ -334,6 +388,11 @@ function getFruitPointerAngle(game) {
 export default function Game() {
   const [game, setGame] = useState(() => makeInitialGame('menu'));
   const [fruitModels, setFruitModels] = useState(null);
+  const [showColorOptions, setShowColorOptions] = useState(false);
+  const [snakeColors, setSnakeColors] = useState({
+    head: '#6ee7b7',
+    body: '#14b8a6',
+  });
   const fruitPointerAngle = getFruitPointerAngle(game);
   const pointerStartX = useRef(0);
   const steeringRef = useRef(0);
@@ -537,7 +596,7 @@ export default function Game() {
       onPointerCancel={handlePointerUp}
     >
       <Canvas camera={{ position: [0, 8, 9], fov: 48 }} dpr={[1, 2]}>
-        <Scene game={game} fruitModels={fruitModels} onStep={stepGame} />
+        <Scene game={game} fruitModels={fruitModels} snakeColors={snakeColors} onStep={stepGame} />
       </Canvas>
 
       {game.status === 'playing' && (
@@ -569,6 +628,35 @@ export default function Game() {
             <button type="button" onClick={startGame} disabled={!fruitModels}>
               {fruitModels ? 'Start' : 'Loading'}
             </button>
+            <button
+              type="button"
+              className="secondary-menu-button"
+              onClick={() => setShowColorOptions((isVisible) => !isVisible)}
+            >
+              Choose Colors
+            </button>
+            {showColorOptions && (
+              <div className="color-options" aria-label="Snake color options">
+                  <label>
+                    <span>Head</span>
+                    <input
+                      type="color"
+                      value={snakeColors.head}
+                      onChange={(event) => setSnakeColors((colors) => ({ ...colors, head: event.target.value }))}
+                      aria-label="Snake head color"
+                    />
+                  </label>
+                  <label>
+                    <span>Body</span>
+                    <input
+                      type="color"
+                      value={snakeColors.body}
+                      onChange={(event) => setSnakeColors((colors) => ({ ...colors, body: event.target.value }))}
+                      aria-label="Snake body color"
+                    />
+                  </label>
+              </div>
+            )}
           </div>
         </div>
       )}
