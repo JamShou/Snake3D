@@ -3,6 +3,8 @@
 
 # Snake-3D
 
+Play the game: https://jamshou.github.io/Snake3D/
+
 Snake-3D is a browser-based 3D Snake game built with Vite, React, Three.js, and React Three Fiber. Instead of moving on a flat grid, the snake travels around the surface of a spherical planet, eating fruit models and growing longer.
 
 ## Features
