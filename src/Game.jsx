@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
@@ -41,6 +41,22 @@ const FRUITS = [
 
 function randomFruit() {
   return FRUITS[Math.floor(Math.random() * FRUITS.length)];
+}
+
+async function loadFruitModels() {
+  const loader = new GLTFLoader();
+  const entries = await Promise.all(
+    FRUITS.map(async (fruit) => {
+      const gltf = await loader.loadAsync(fruit.path);
+      const scene = gltf.scene;
+      const bounds = new THREE.Box3().setFromObject(scene);
+      const center = bounds.getCenter(new THREE.Vector3());
+      scene.position.sub(center);
+      return [fruit.name, scene];
+    }),
+  );
+
+  return Object.fromEntries(entries);
 }
 
 function makePlanetTexture() {
@@ -181,16 +197,12 @@ function SpaceBackdrop() {
   );
 }
 
-function Food({ food }) {
+function Food({ food, fruitModels }) {
   const foodRef = useRef();
-  const gltf = useLoader(GLTFLoader, food.fruit.path);
+  const sourceModel = fruitModels?.[food.fruit.name];
   const model = useMemo(() => {
-    const clone = gltf.scene.clone(true);
-    const bounds = new THREE.Box3().setFromObject(clone);
-    const center = bounds.getCenter(new THREE.Vector3());
-    clone.position.sub(center);
-    return clone;
-  }, [gltf.scene]);
+    return sourceModel ? sourceModel.clone(true) : null;
+  }, [sourceModel]);
   const surfacePosition = useMemo(
     () => food.position.clone().normalize().multiplyScalar(SPHERE_RADIUS + 0.28),
     [food.position],
@@ -210,7 +222,14 @@ function Food({ food }) {
   return (
     <group position={surfacePosition} quaternion={rotation}>
       <group ref={foodRef} scale={food.fruit.scale}>
-        <primitive object={model} />
+        {model ? (
+          <primitive object={model} />
+        ) : (
+          <mesh>
+            <sphereGeometry args={[0.22, 24, 24]} />
+            <meshStandardMaterial color="#facc15" emissive="#f59e0b" emissiveIntensity={1.2} />
+          </mesh>
+        )}
       </group>
       <pointLight color="#facc15" intensity={1.8} distance={4.2} />
     </group>
@@ -221,26 +240,33 @@ function CameraFollower({ head, forward }) {
   const { camera } = useThree();
   const targetRef = useRef(new THREE.Vector3());
   const cameraRef = useRef(new THREE.Vector3(0, 8, 8));
+  const screenUp = useMemo(() => new THREE.Vector3(0, 0, -1), []);
+  const fallbackUp = useMemo(() => new THREE.Vector3(1, 0, 0), []);
 
   useFrame(() => {
     const normal = head.clone().normalize();
-    const tangent = tangentFromDirection(forward, normal);
     const target = normal.clone().multiplyScalar(SPHERE_RADIUS + 0.6);
-    const desiredPosition = target
-      .clone()
-      .add(normal.clone().multiplyScalar(3.3))
-      .add(tangent.clone().multiplyScalar(-5.1));
+    const desiredPosition = normal.clone().multiplyScalar(SPHERE_RADIUS + 8.2);
 
     targetRef.current.lerp(target, 0.16);
     cameraRef.current.lerp(desiredPosition, 0.1);
     camera.position.copy(cameraRef.current);
+
+    const viewDirection = targetRef.current.clone().sub(camera.position).normalize();
+    const stableUp = screenUp.clone().sub(viewDirection.clone().multiplyScalar(screenUp.dot(viewDirection)));
+
+    if (stableUp.lengthSq() < 0.0001) {
+      stableUp.copy(fallbackUp).sub(viewDirection.clone().multiplyScalar(fallbackUp.dot(viewDirection)));
+    }
+
+    camera.up.copy(stableUp.normalize());
     camera.lookAt(targetRef.current);
   });
 
   return null;
 }
 
-function Scene({ game, onStep }) {
+function Scene({ game, fruitModels, onStep }) {
   const accumulator = useRef(0);
 
   useFrame((_, delta) => {
@@ -267,7 +293,7 @@ function Scene({ game, onStep }) {
       <directionalLight position={[-4, -2, -5]} intensity={0.55} color="#67e8f9" />
       <Planet />
       <SphereSnake body={game.body} />
-      <Food food={game.food} />
+      <Food food={game.food} fruitModels={fruitModels} />
       <CameraFollower head={game.body[0]} forward={game.forward} />
     </>
   );
@@ -287,8 +313,28 @@ function makeInitialGame(status = 'playing') {
   };
 }
 
+function getFruitPointerAngle(game) {
+  const head = game.body[0];
+  const normal = head.clone().normalize();
+  const toFood = game.food.position.clone().sub(head);
+  const tangentToFood = tangentFromDirection(toFood, normal);
+  const screenUp = new THREE.Vector3(0, 0, -1);
+  const projectedUp = screenUp.sub(normal.clone().multiplyScalar(screenUp.dot(normal)));
+
+  if (projectedUp.lengthSq() < 0.0001) {
+    projectedUp.set(1, 0, 0).sub(normal.clone().multiplyScalar(normal.x));
+  }
+
+  projectedUp.normalize();
+  const projectedRight = new THREE.Vector3().crossVectors(projectedUp, normal).normalize();
+
+  return Math.atan2(tangentToFood.dot(projectedRight), tangentToFood.dot(projectedUp));
+}
+
 export default function Game() {
   const [game, setGame] = useState(() => makeInitialGame('menu'));
+  const [fruitModels, setFruitModels] = useState(null);
+  const fruitPointerAngle = getFruitPointerAngle(game);
   const pointerStartX = useRef(0);
   const steeringRef = useRef(0);
   const musicRef = useRef(null);
@@ -329,9 +375,34 @@ export default function Game() {
   }, [startMusic]);
 
   const startGame = useCallback(() => {
+    if (!fruitModels) {
+      return;
+    }
+
     startMusic();
     setGame(makeInitialGame('playing'));
-  }, [startMusic]);
+  }, [fruitModels, startMusic]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    loadFruitModels()
+      .then((models) => {
+        if (!cancelled) {
+          setFruitModels(models);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load fruit models', error);
+        if (!cancelled) {
+          setFruitModels({});
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const queueTurn = useCallback((direction) => {
     setGame((current) => {
@@ -466,8 +537,17 @@ export default function Game() {
       onPointerCancel={handlePointerUp}
     >
       <Canvas camera={{ position: [0, 8, 9], fov: 48 }} dpr={[1, 2]}>
-        <Scene game={game} onStep={stepGame} />
+        <Scene game={game} fruitModels={fruitModels} onStep={stepGame} />
       </Canvas>
+
+      {game.status === 'playing' && (
+        <div className="fruit-pointer" aria-label="Direction to fruit">
+          <div
+            className="fruit-pointer-arrow"
+            style={{ transform: `rotate(${fruitPointerAngle}rad)` }}
+          />
+        </div>
+      )}
 
       {game.status !== 'menu' && (
         <section className="hud" aria-label="Game status">
@@ -486,7 +566,9 @@ export default function Game() {
         <div className="overlay menu-overlay" role="dialog" aria-modal="true">
           <div className="menu-panel">
             <h1>Snake3D</h1>
-            <button type="button" onClick={startGame}>Start</button>
+            <button type="button" onClick={startGame} disabled={!fruitModels}>
+              {fruitModels ? 'Start' : 'Loading'}
+            </button>
           </div>
         </div>
       )}
